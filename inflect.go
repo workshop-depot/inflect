@@ -5,6 +5,50 @@ import (
 	"reflect"
 )
 
+//-----------------------------------------------------------------------------
+// utilities
+
+func valueOf(data interface{}) *reflect.Value {
+	var val reflect.Value
+
+	switch reflect.TypeOf(data).Kind() {
+	case reflect.Ptr:
+		val = reflect.ValueOf(data).Elem()
+	case reflect.Struct:
+		val = reflect.ValueOf(data)
+	default:
+		return nil
+	}
+
+	return &val
+}
+
+func ptrOf(data interface{}) *reflect.Value {
+	var val reflect.Value
+
+	switch reflect.TypeOf(data).Kind() {
+	case reflect.Ptr:
+		val = reflect.ValueOf(data).Elem()
+	default:
+		return nil
+	}
+
+	return &val
+}
+
+// Errors
+var (
+	ErrNotFound     = errors.New("field does not exist")
+	ErrNotMatched   = errors.New("CAS old value does not match")
+	ErrInvalidType  = errors.New("data has invalid type - not a pointer nor a struct")
+	ErrNonPointer   = errors.New("a pointer was expected")
+	ErrNoSet        = errors.New("can not set field value")
+	ErrTypeMismatch = errors.New("field type & value type are different")
+)
+
+//-----------------------------------------------------------------------------
+// API
+
 // Get extracts the value of a field
 func Get(data interface{}, fieldName string) (interface{}, error) {
 	val := valueOf(data)
@@ -69,57 +113,16 @@ func CAS(data interface{}, fieldName string, oldValue, newValue interface{}) err
 func Tag(data interface{}, fieldName string, tag string) (string, error) {
 	val := valueOf(data)
 	if val == nil {
-		return ``, ErrInvalidType
+		return "", ErrInvalidType
 	}
 	field := val.FieldByName(fieldName)
 	if !field.IsValid() {
-		return ``, ErrNotFound
+		return "", ErrNotFound
 	}
 	fieldType, _ := val.Type().FieldByName(fieldName)
 	tv, _ := fieldType.Tag.Lookup(tag)
-	if tv == `` {
-		return ``, ErrNotFound
+	if tv == "" {
+		return "", ErrNotFound
 	}
 	return tv, nil
-}
-
-// Errors
-var (
-	ErrNotFound     = errors.New(`field does not exist`)
-	ErrNotMatched   = errors.New(`CAS old value does not match`)
-	ErrInvalidType  = errors.New(`data has invalid type - not a pointer nor a struct`)
-	ErrNonPointer   = errors.New(`a pointer was expected`)
-	ErrNoSet        = errors.New(`can not set field value`)
-	ErrTypeMismatch = errors.New(`field type & value type are different`)
-)
-
-//-----------------------------------------------------------------------------
-// utilities
-
-func valueOf(data interface{}) *reflect.Value {
-	var val reflect.Value
-
-	switch reflect.TypeOf(data).Kind() {
-	case reflect.Ptr:
-		val = reflect.ValueOf(data).Elem()
-	case reflect.Struct:
-		val = reflect.ValueOf(data)
-	default:
-		return nil
-	}
-
-	return &val
-}
-
-func ptrOf(data interface{}) *reflect.Value {
-	var val reflect.Value
-
-	switch reflect.TypeOf(data).Kind() {
-	case reflect.Ptr:
-		val = reflect.ValueOf(data).Elem()
-	default:
-		return nil
-	}
-
-	return &val
 }
